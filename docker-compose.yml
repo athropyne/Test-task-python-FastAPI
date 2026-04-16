@@ -1,0 +1,219 @@
+version: '3.9'
+
+services:
+  gateway_postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_DB: gateway
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "14000:5432"
+    volumes:
+      - gateway_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user -d gateway" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  profiles_postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_DB: profiles
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "14001:5432"
+    volumes:
+      - profiles_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user -d profiles" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  products_postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_DB: products
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "14002:5432"
+    volumes:
+      - products_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user -d products" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  carts_postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_DB: carts
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "14003:5432"
+    volumes:
+      - carts_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user -d carts" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  orders_postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_DB: orders
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "14004:5432"
+    volumes:
+      - orders_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user -d orders" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  adminer:
+    image: adminer:latest
+    container_name: adminer
+    ports:
+      - "8080:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    restart: unless-stopped
+    networks:
+      - app-network
+    depends_on:
+      - gateway_postgres
+      - profiles_postgres
+      - products_postgres
+      - carts_postgres
+      - orders_postgres
+
+  rabbitmq:
+    image: rabbitmq:latest
+    container_name: rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"  # AMQP protocol
+      - "15672:15672"  # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - rabbitmq_logs:/var/log/rabbitmq
+    healthcheck:
+      test: [ "CMD", "rabbitmqctl", "status" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - app-network
+
+  gateway-service:
+    build: ./src/services/gateway
+    ports:
+      - "8000:8000"
+    depends_on:
+      adminer:
+        condition: service_started
+      gateway_postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  profile-service:
+    build: ./src/services/profile
+    ports:
+      - "8001:8001"
+    depends_on:
+      adminer:
+        condition: service_started
+      profiles_postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+  product-service:
+    build: ./src/services/products
+    ports:
+      - "8002:8002"
+    depends_on:
+      adminer:
+        condition: service_started
+      products_postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+  cart-service:
+    build: ./src/services/cart
+    ports:
+      - "8003:8003"
+    depends_on:
+      adminer:
+        condition: service_started
+      carts_postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+  order-service:
+    build: ./src/services/orders
+    ports:
+      - "8004:8004"
+    depends_on:
+      adminer:
+        condition: service_started
+      orders_postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+volumes:
+  gateway_postgres_data:
+  profiles_postgres_data:
+  products_postgres_data:
+  carts_postgres_data:
+  orders_postgres_data:
+  rabbitmq_data:
+  rabbitmq_logs:
+
+networks:
+  app-network:
+    driver: bridge

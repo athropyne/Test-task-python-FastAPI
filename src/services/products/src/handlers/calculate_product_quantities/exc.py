@@ -1,0 +1,2 @@
+class ThereIsNotEnoughProduct(Exception):
+    pass

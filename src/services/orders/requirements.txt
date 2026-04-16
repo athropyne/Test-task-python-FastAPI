@@ -1,0 +1,15 @@
+httpx
+fastapi-standalone-docs
+fastapi[standard]
+sqlalchemy
+asyncpg
+python-dotenv
+pydantic-settings
+faststream[rabbit]
+faststream[cli]
+loguru
+uvicorn
+starlette
+pydantic
+pydantic_core
+
